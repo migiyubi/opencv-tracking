@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
         // handle key events.
         int key_code = waitKey(wait); // TODO: waitKey() may not have enough accuracy to stabilize frame rate. neither does clock().
         int key_upper = key_code >> 16;
-        int key_lower = key_code & 0xffff;
+        int key_lower = key_code & 0xffff; if(key_code>0)printf("%d, %d\n", key_upper, key_lower);
 
         if (key_lower == 0x20) { // Space
             // set object to track.
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
                 located = false;
             }
         }
-        else if (key_lower == 0x000a || key_lower == 0xff8d) { // Enter
+        else if (/*linux*/ key_lower == 0x000a || key_lower == 0xff8d || /*windows*/ key_lower == 0x000d) { // Enter
             // toggle play/pause.
             playing = !playing;
         }
