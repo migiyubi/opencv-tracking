@@ -7,8 +7,17 @@
 
 using namespace cv;
 
-static bool isValidRect(const Rect2d &rect) {
-    return rect.width > 0.0 && rect.height > 0.0;
+static bool validateRects(std::vector<Rect2d> &rects) {
+    std::vector<Rect2d>::iterator it = rects.begin();
+    while (it != rects.end()) {
+        if (it->width <= 0.0 || it->height <= 0.0) {
+            rects.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
+    return rects.size() > 0;
 }
 
 static long long getCurrentTimeMillis() {
@@ -17,16 +26,13 @@ static long long getCurrentTimeMillis() {
 }
 
 int main(int argc, char **argv) {
-    if (argc < 2 || argc > 4) {
-        printf("Usage: %s source_filepath [mask_filepath [tracking_algorithm]]\n", argv[0]);
-        printf("  available tracking algorithms are below\n");
-        printf("    KCF(default), MEDIANFLOW, MIL, BOOSTING, TLD\n");
+    if (argc < 2) {
+        printf("Usage: %s source_filepath [mask_filepath ...]\n", argv[0]);
         return -1;
     }
 
     const char *src_filepath = argv[1];
-    const char *mask_filepath = (argc >= 3) ? argv[2] : nullptr;
-    const char *tracking_algorithm = (argc >= 4) ? argv[3] : "KCF";
+    const char *tracking_algorithm = "KCF";
 
     VideoGrabber grabber;
     if (!grabber.open(src_filepath)) {
@@ -42,18 +48,18 @@ int main(int argc, char **argv) {
     bool playing = true;
     bool tracking = false;
     bool located = false;
-	bool debug = false;
+    bool debug = false;
 
     Mat src_frame;
-    Rect2d roi_tracking, result_tracking;
-    Ptr<Tracker> tracker;
+    std::vector<Rect2d> roi_tracking, result_tracking;
+    Ptr<MultiTracker> tracker;
 
     // first frame.
     grabber.getNextFrame(src_frame);
     gui.open(src_frame);
 
-    if (mask_filepath != nullptr) {
-        gui.setMaskImage(imread(mask_filepath, IMREAD_UNCHANGED));
+    for (int i = 2; i < argc; i++) {
+        gui.addMaskImage(imread(argv[i], IMREAD_UNCHANGED));
     }
 
     long long t0 = getCurrentTimeMillis();
@@ -69,8 +75,10 @@ int main(int argc, char **argv) {
             // Note: somehow, KCF does not return detected size.
             //       set those of initial roi.
             if (located && strcmp("KCF", tracking_algorithm) == 0) {
-                result_tracking.width = roi_tracking.width;
-                result_tracking.height = roi_tracking.height;
+                for (int i = 0; i < roi_tracking.size(); i++) {
+                    result_tracking[i].width = roi_tracking[i].width;
+                    result_tracking[i].height = roi_tracking[i].height;
+                }
             }
         }
 
@@ -92,9 +100,9 @@ int main(int argc, char **argv) {
             // set object to track.
             gui.selectRoi(roi_tracking);
 
-            if (isValidRect(roi_tracking)) {
-                tracker = Tracker::create(tracking_algorithm);
-                tracking = tracker->init(src_frame, roi_tracking);
+            if (validateRects(roi_tracking)) {
+                tracker = new MultiTracker(tracking_algorithm); // it seems there is no way to reset instantiated tracker.
+                tracking = tracker->add(src_frame, roi_tracking);
             }
             else {
                 tracking = false;

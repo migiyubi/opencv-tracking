@@ -6,7 +6,6 @@
 Gui::Gui(const char *window_name, Point initial_position) {
     this->window_name = window_name;
     this->initial_position = initial_position;
-    this->image_mask.data = nullptr;
 }
 
 Gui::~Gui() {
@@ -18,30 +17,32 @@ void Gui::open(const Mat &frame) {
     moveWindow(window_name, initial_position.x, initial_position.y);
 }
 
-void Gui::update(const Mat &frame, const Rect2d &mask_rect, bool tracking, int frame_id, bool debug) {
+void Gui::update(const Mat &frame, const std::vector<Rect2d> &mask_rect, bool tracking, int frame_id, bool debug) {
     current_frame_orig = frame;
     frame.copyTo(current_frame);
 
     if (tracking) {
         // write overlay image.
-        if (image_mask.empty()) {
-            rectangle(current_frame, mask_rect, Scalar(0, 0, 255), 2);
-        }
-        else {
-            const double weight = 0.3;
-            double ratio = sqrt((mask_rect.width * mask_rect.height) / (image_mask.cols * image_mask.rows));
-            ratio = weight + (ratio * (1.0 - weight));
-            double dst_w = image_mask.cols * ratio;
-            double dst_h = image_mask.rows * ratio;
-            double dst_x = mask_rect.x + (mask_rect.width - dst_w) / 2;
-            double dst_y = mask_rect.y + (mask_rect.height - dst_h) / 2;
+        for (int i = 0; i < mask_rect.size(); i++) {
+            if (i >= image_mask_list.size()) {
+                rectangle(current_frame, mask_rect[i], Scalar(0, 0, 255), 2);
+            }
+            else {
+                const double weight = 0.3;
+                double ratio = sqrt((mask_rect[i].width * mask_rect[i].height) / (image_mask_list[i].cols * image_mask_list[i].rows));
+                ratio = weight + (ratio * (1.0 - weight));
+                double dst_w = image_mask_list[i].cols * ratio;
+                double dst_h = image_mask_list[i].rows * ratio;
+                double dst_x = mask_rect[i].x + (mask_rect[i].width - dst_w) / 2;
+                double dst_y = mask_rect[i].y + (mask_rect[i].height - dst_h) / 2;
 
-            Rect2d src = Rect2d(0, 0, image_mask.cols, image_mask.rows);
-            Rect2d dst = Rect2d(dst_x, dst_y, dst_w, dst_h);
+                Rect2d src = Rect2d(0, 0, image_mask_list[i].cols, image_mask_list[i].rows);
+                Rect2d dst = Rect2d(dst_x, dst_y, dst_w, dst_h);
 
-            Mat warp_mat;
-            getLinearTransformMatrix(warp_mat, src, dst);
-            drawImage(image_mask, current_frame, warp_mat);
+                Mat warp_mat;
+                getLinearTransformMatrix(warp_mat, src, dst);
+                drawImage(image_mask_list[i], current_frame, warp_mat);
+            }
         }
     }
 
@@ -62,10 +63,10 @@ void Gui::update(const Mat &frame, const Rect2d &mask_rect, bool tracking, int f
         Point offset(5, 50);
 
         sprintf(text, "tracking: %s", tracking ? "T" : "F"); putText(current_frame, text, offset, font, scale, color, thickness, CV_AA); offset.y += dy;
-        sprintf(text, "x: %f", mask_rect.x / current_frame.cols); putText(current_frame, text, offset, font, scale, color, thickness, CV_AA); offset.y += dy;
-        sprintf(text, "y: %f", mask_rect.y / current_frame.rows); putText(current_frame, text, offset, font, scale, color, thickness, CV_AA); offset.y += dy;
-        sprintf(text, "w: %f", mask_rect.width / current_frame.cols); putText(current_frame, text, offset, font, scale, color, thickness, CV_AA); offset.y += dy;
-        sprintf(text, "h: %f", mask_rect.height / current_frame.rows); putText(current_frame, text, offset, font, scale, color, thickness, CV_AA); offset.y += dy;
+        for (int i = 0; i < mask_rect.size(); i++) {
+            sprintf(text, "x: %f", mask_rect[i].x / current_frame.cols); putText(current_frame, text, offset, font, scale, color, thickness, CV_AA); offset.y += dy;
+            sprintf(text, "y: %f", mask_rect[i].y / current_frame.rows); putText(current_frame, text, offset, font, scale, color, thickness, CV_AA); offset.y += dy;
+        }
     }
 
     imshow(window_name, current_frame);
@@ -75,16 +76,18 @@ void Gui::close() {
     destroyWindow(window_name);
 }
 
-void Gui::selectRoi(Rect2d &roi) {
+void Gui::selectRoi(std::vector<Rect2d> &roi) {
     Mat image_select_roi;
     current_frame_orig.copyTo(image_select_roi);
     putText(image_select_roi, "SELECT ROI", Point(5, 30), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(0, 255, 0), 2, CV_AA);
 
-    roi = selectROI(window_name, image_select_roi, false, false);
+    selectROI(window_name, image_select_roi, roi, false);
 }
 
-void Gui::setMaskImage(const Mat &image) {
+void Gui::addMaskImage(const Mat &image) {
+    Mat image_mask;
     image.copyTo(image_mask);
+    image_mask_list.push_back(image_mask);
 }
 
 // TODO: overwrite background image considering alpha channel of foreground image.

@@ -11,10 +11,10 @@ public:
     ~Gui();
 
     void open(const Mat &frame);
-    void update(const Mat &frame, const Rect2d &mask_rect, bool tracking, int frame_id, bool debug = false);
+    void update(const Mat &frame, const std::vector<Rect2d> &mask_rect, bool tracking, int frame_id, bool debug = false);
     void close();
-    void selectRoi(Rect2d &roi);
-    void setMaskImage(const Mat &image);
+    void selectRoi(std::vector<Rect2d> &roi);
+    void addMaskImage(const Mat &image);
 
 private:
     const char *window_name;
@@ -22,7 +22,7 @@ private:
 
     Mat current_frame_orig;
     Mat current_frame;
-    Mat image_mask;
+    std::vector<Mat> image_mask_list;
 
     void drawImage(const Mat &fore_image, Mat &base_image, const Mat &affine);
     void getLinearTransformMatrix(Mat &warp_mat, const Rect2d &src, const Rect2d &dst);
