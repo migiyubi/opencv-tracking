@@ -62,10 +62,13 @@ void Gui::update(const Mat &frame, const std::vector<Rect2d> &mask_rect, bool tr
 
         Point offset(5, 50);
 
-        sprintf(text, "tracking: %s", tracking ? "T" : "F"); putText(current_frame, text, offset, font, scale, color, thickness, CV_AA); offset.y += dy;
+        sprintf(text, "tracking: %s", tracking ? "T" : "F");
+        putText(current_frame, text, offset, font, scale, color, thickness, CV_AA);
+        offset.y += dy;
         for (int i = 0; i < mask_rect.size(); i++) {
-            sprintf(text, "x: %f", mask_rect[i].x / current_frame.cols); putText(current_frame, text, offset, font, scale, color, thickness, CV_AA); offset.y += dy;
-            sprintf(text, "y: %f", mask_rect[i].y / current_frame.rows); putText(current_frame, text, offset, font, scale, color, thickness, CV_AA); offset.y += dy;
+            sprintf(text, "[%d] (%03d,%03d)", i, (int)mask_rect[i].x, (int)mask_rect[i].y);
+            putText(current_frame, text, offset, font, scale, color, thickness, CV_AA);
+            offset.y += dy;
         }
     }
 
